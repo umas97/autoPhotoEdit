@@ -10,9 +10,9 @@ rather than like a browser someone stripped:
 * a **dedicated profile** under ``$XDG_DATA_HOME``. Without it the window
   inherits the user's extensions, their session and their enterprise policy, and
   opens differently depending on whether their browser happened to be running;
-* ``--class=autophotoedit``, which is what ``StartupWMClass`` in the desktop
-  entry points at (section 18). Without it the dock shows a Chromium icon with
-  the wrong name;
+* a **window identity of its own**, which is what ``StartupWMClass`` in the
+  desktop entry points at (section 18). Without it the dock shows Chromium's
+  icon, or another local app's (``window_id.py`` says why);
 * the browser process is a **child of this one**, so closing the window is a
   signal the program can act on (section 21.3) and "Esci" can close the window;
 * a fallback that says so. On a machine with only Firefox there is no
@@ -43,11 +43,13 @@ from enum import StrEnum
 from pathlib import Path
 
 from .config import get_settings
-from .single_instance import WM_CLASS, server_responds
+from .single_instance import server_responds
+from .window_id import WINDOW_PATH, window_class, window_url
 
 __all__ = [
     "BROWSER_CANDIDATES",
     "FLATPAK_CANDIDATES",
+    "WINDOW_PATH",
     "WindowMode",
     "WindowSession",
     "current_session",
@@ -55,6 +57,8 @@ __all__ = [
     "open_window",
     "wait_for_server",
     "web_app_id",
+    "window_class",
+    "window_url",
 ]
 
 _log = logging.getLogger(__name__)
@@ -239,12 +243,13 @@ def installed_app_id(start_url: str, profile: Path | None = None) -> str | None:
 
 
 def _app_argv(command: list[str], url: str, profile: Path) -> list[str]:
+    wm_class = window_class(command, url)
     return [
         *command,
         f"--app={url}",
         f"--user-data-dir={profile}",
-        f"--class={WM_CLASS}",
-        f"--name={WM_CLASS}",
+        f"--class={wm_class}",
+        f"--name={wm_class}",
         f"--window-size={WINDOW_SIZE}",
         "--no-first-run",
         "--no-default-browser-check",
@@ -252,12 +257,13 @@ def _app_argv(command: list[str], url: str, profile: Path) -> list[str]:
 
 
 def _pwa_argv(command: list[str], app_id: str, profile: Path) -> list[str]:
+    wm_class = window_class(command)
     return [
         *command,
         f"--app-id={app_id}",
         f"--user-data-dir={profile}",
-        f"--class={WM_CLASS}",
-        f"--name={WM_CLASS}",
+        f"--class={wm_class}",
+        f"--name={wm_class}",
         "--no-first-run",
         "--no-default-browser-check",
     ]
@@ -274,7 +280,8 @@ def open_window(
     """Open the interface, taking the first link of the chain that works.
 
     Args:
-        url: where the server is listening.
+        url: where the server is listening. The application window opens at
+            :func:`window_url` of it; the PWA and the tab at ``url`` itself.
         browser: an explicit browser, from ``--browser`` or ``APE_BROWSER``.
         candidates: see :func:`find_browser`.
         flatpaks: see :func:`find_browser`.
@@ -294,7 +301,7 @@ def open_window(
         argv = (
             _pwa_argv(command, app_id, profile)
             if app_id
-            else _app_argv(command, url, profile)
+            else _app_argv(command, window_url(url), profile)
         )
         mode = WindowMode.PWA if app_id else WindowMode.APP
         try:

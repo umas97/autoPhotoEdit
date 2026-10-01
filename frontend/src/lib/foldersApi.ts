@@ -22,6 +22,8 @@ export interface FolderListing {
   truncated: boolean
   /** ARW files directly in `path`: what an import of it would find. */
   raw_count: number
+  /** JPEG and TIFF files directly in `path`: what a style profile would pair. */
+  reference_count: number
   places: FolderPlace[]
 }
 

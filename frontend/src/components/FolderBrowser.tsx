@@ -1,7 +1,8 @@
 // autoPhotoEdit -- automatic post-production for Sony RAW files.
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Choosing a folder by walking it, for the project's RAWs. The browser cannot
+// Choosing a folder by walking it: the project's RAWs, and the two folders of a
+// style profile (components/styles/CreateProfileDialog.tsx). The browser cannot
 // give the server a path, but the server is on the same machine and lists the
 // folders itself (backend/ape/api/routes_folders.py). A panel, not a second
 // dialog: it opens inside the dialog that needs the path, under its field.
@@ -62,11 +63,14 @@ function Breadcrumbs({ path, onGo }: { path: string; onGo: (path: string) => voi
 
 export function FolderBrowser({
   start,
+  counts = 'raws',
   onChoose,
   onClose,
 }: {
   /** Where to open: the path already typed, if it is one. */
   start?: string
+  /** What the folder is for, and so what its count is of: RAWs, or edited photos. */
+  counts?: 'raws' | 'references'
   onChoose: (path: string) => void
   onClose: () => void
 }) {
@@ -79,6 +83,10 @@ export function FolderBrowser({
     retry: false,
   })
   const data = listing.data
+  const count = data ? (counts === 'raws' ? data.raw_count : data.reference_count) : 0
+  const countLabel = counts === 'raws'
+    ? (count ? t('folders.raws', { count }) : t('folders.noRaws'))
+    : (count ? t('folders.references', { count }) : t('folders.noReferences'))
 
   return (
     <div className="rounded-md border border-ink-600 bg-ink-900">
@@ -137,8 +145,8 @@ export function FolderBrowser({
       </ul>
 
       <div className="flex items-center gap-2 border-t border-ink-700 p-1.5">
-        <p className={cn('min-w-0 flex-1 text-xs', data?.raw_count ? 'text-ink-200' : 'text-ink-400')}>
-          {data ? (data.raw_count ? t('folders.raws', { count: data.raw_count }) : t('folders.noRaws')) : null}
+        <p className={cn('min-w-0 flex-1 text-xs', count ? 'text-ink-200' : 'text-ink-400')}>
+          {data ? countLabel : null}
         </p>
         <Button size="sm" variant="ghost" type="button" onClick={onClose}>
           {t('folders.close')}

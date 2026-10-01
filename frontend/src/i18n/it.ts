@@ -301,6 +301,12 @@ export const it = {
   'styles.create.preview': 'Controlla l’accoppiamento',
   'styles.create.previewResult':
     '{pairs} coppie trovate su {raws} RAW ({name} per nome, {xmp} dai metadati, {time} per ora di scatto); {unpaired} editate da accoppiare a mano.',
+  'styles.create.howMany':
+    'Quante foto: almeno {min} coppie RAW + versione editata, sotto il profilo è poco affidabile. Per un buon profilo ne servono {recommended}–100, scelte tra scene diverse (luce, interni ed esterni, persone e paesaggi): contano più la varietà e la coerenza dello stile che il numero.',
+  'styles.create.verdictFew': 'Meno di {min} coppie: il profilo funzionerà, ma sarà poco affidabile. Aggiungi altre foto se puoi.',
+  'styles.create.verdictEnough':
+    'Sufficiente per partire. Con almeno {recommended} coppie di scene diverse il profilo sarà più affidabile.',
+  'styles.create.verdictGood': 'Un buon numero di coppie per un profilo affidabile.',
   'styles.create.submit': 'Crea e addestra',
   'styles.create.duration': 'Circa 10 secondi di calcolo per coppia, in background.',
 

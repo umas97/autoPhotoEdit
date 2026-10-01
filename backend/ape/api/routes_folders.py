@@ -6,7 +6,9 @@ A browser cannot hand a server a path -- only copies of files -- but this
 server runs on the same machine as the browser, so it can list the folders
 itself and let the interface walk them. ``GET /api/folders`` returns the
 sub-folders of one folder and how many RAWs it holds, counted the way the
-import counts them (non-recursive, section 15), plus the places a photographer
+import counts them (non-recursive, section 15), how many edited photos (the
+references a style profile learns from, counted the way the pairing reads
+them), plus the places a photographer
 starts from: home, the pictures folder, and the memory cards and disks mounted
 under ``/media`` and ``/run/media``.
 
@@ -24,6 +26,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Query, status
 
 from ..importer import RAW_EXTENSION
+from ..style.pairing import REFERENCE_SUFFIXES
 
 __all__ = ["router"]
 
@@ -75,7 +78,7 @@ def _places() -> list[dict]:
 def list_folders(
     path: str | None = None, hidden: bool = Query(default=False)
 ) -> dict:
-    """The sub-folders of ``path`` (home when omitted), and its RAW count.
+    """The sub-folders of ``path`` (home when omitted), and what it holds.
 
     Raises:
         HTTPException 404: ``path`` is not a folder.
@@ -89,7 +92,7 @@ def list_folders(
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"la cartella {folder} non esiste")
 
     folders: list[dict] = []
-    raws = 0
+    raws = references = 0
     try:
         with os.scandir(folder) as entries:
             for entry in entries:
@@ -99,6 +102,8 @@ def list_folders(
                             folders.append({"name": entry.name, "path": str(folder / entry.name)})
                     elif entry.name.lower().endswith(RAW_EXTENSION) and entry.is_file():
                         raws += 1
+                    elif Path(entry.name).suffix.lower() in REFERENCE_SUFFIXES and entry.is_file():
+                        references += 1
                 except OSError:
                     continue  # a broken link, a vanished entry: not worth failing the list
     except PermissionError as exc:
@@ -115,5 +120,6 @@ def list_folders(
         "folders": folders[:MAX_FOLDERS],
         "truncated": len(folders) > MAX_FOLDERS,
         "raw_count": raws,
+        "reference_count": references,
         "places": _places(),
     }

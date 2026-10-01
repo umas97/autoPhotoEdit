@@ -33,7 +33,11 @@ export function ProjectsPage() {
   const projects = useQuery({ queryKey: ['projects'], queryFn: api.listProjects })
   const remove = useMutation({
     mutationFn: (id: number) => api.deleteProject(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['projects'] }),
+    // Out of the list at once, then the server's word on it.
+    onSuccess: (_, id) => {
+      queryClient.setQueryData<Project[]>(['projects'], (list) => list?.filter((p) => p.id !== id))
+      return queryClient.invalidateQueries({ queryKey: ['projects'] })
+    },
   })
 
   return (

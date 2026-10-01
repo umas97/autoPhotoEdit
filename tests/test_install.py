@@ -66,7 +66,7 @@ def _entry(path: Path) -> dict[str, str]:
 
 
 def test_install_puts_an_application_in_the_menu_and_again_changes_nothing(tmp_path: Path):
-    from ape.single_instance import WM_CLASS
+    from ape.launcher import window_class
 
     home = tmp_path / "casa"
     home.mkdir()
@@ -89,7 +89,10 @@ def test_install_puts_an_application_in_the_menu_and_again_changes_nothing(tmp_p
     assert launcher.is_file() and os.access(launcher, os.X_OK)
     assert all(icon.is_file() for icon in icons)
     entry = _entry(desktop)
-    assert entry["StartupWMClass"] == WM_CLASS == "autophotoedit"
+    # What the window will be called, which is not a name of our choosing
+    # (launcher.window_class), and never the one other local apps share.
+    assert entry["StartupWMClass"] == window_class()
+    assert entry["StartupWMClass"].endswith("-127.0.0.1__autophotoedit-Default")
     assert entry["Icon"] == "autophotoedit" and entry["Terminal"] == "false"
     assert entry["Categories"] == "Graphics;Photography;"
     assert entry["Exec"] == str(launcher)

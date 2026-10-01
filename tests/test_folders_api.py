@@ -50,6 +50,7 @@ def test_a_folder_lists_its_folders_and_counts_its_raws(client: TestClient, card
     before = file_state(photos)
     answer = client.get("/api/folders", params={"path": str(photos)}).json()
     assert answer["raw_count"] == 3  # the JPEG is not a RAW, the sub-folder is not counted
+    assert answer["reference_count"] == 1  # but it is an edited photo, for a style profile
     assert [f["name"] for f in answer["folders"]] == ["sub"]
     assert file_state(photos) == before  # section 2: looked at, never touched
 

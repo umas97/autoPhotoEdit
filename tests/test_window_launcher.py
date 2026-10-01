@@ -82,9 +82,12 @@ def test_the_window_is_a_chromium_in_application_mode(tmp_path, xdg_home, monkey
         assert session.mode is launcher.WindowMode.APP
         assert session.alive
         (argv,) = _launches(log)
-        assert "--app=http://127.0.0.1:8787/" in argv
-        assert f"--class={si.WM_CLASS}" in argv
-        assert f"--name={si.WM_CLASS}" in argv
+        # Opened at a path of its own: the port is not part of the identity
+        # Chromium gives the window, the path is (see test below).
+        assert "--app=http://127.0.0.1:8787/autophotoedit" in argv
+        wm_class = launcher.window_class([str(script)], "http://127.0.0.1:8787/autophotoedit")
+        assert f"--class={wm_class}" in argv
+        assert f"--name={wm_class}" in argv
         assert f"--user-data-dir={launcher.profile_dir()}" in argv
         assert "--no-first-run" in argv
         # The profile is a real directory by now: Chromium would not create it
@@ -92,6 +95,34 @@ def test_the_window_is_a_chromium_in_application_mode(tmp_path, xdg_home, monkey
         assert launcher.profile_dir().is_dir()
     finally:
         session.close()
+
+
+def test_the_window_identity_is_not_shared_with_other_local_apps():
+    """Under Wayland the identity comes from host and path, never the port.
+
+    Another app at ``http://127.0.0.1:<any port>/`` gets ``chrome-127.0.0.1__-Default``,
+    and the dock would give this window that app's icon.
+    """
+    chrome = ["/usr/bin/google-chrome"]
+    ours = launcher.window_class(chrome, "http://127.0.0.1:8787/autophotoedit")
+    assert ours == "chrome-127.0.0.1__autophotoedit-Default"
+    assert launcher.window_class(chrome, "http://127.0.0.1:9999/autophotoedit") == ours
+    assert ours != launcher.window_class(chrome, "http://127.0.0.1:8765/")
+    assert launcher.window_class(["/usr/bin/chromium"]).startswith("chromium-")
+    assert launcher.window_class(["/snap/bin/chromium"]).startswith("chromium_chromium-")
+    flatpak = ["/usr/bin/flatpak", "run", "org.chromium.Chromium"]
+    assert launcher.window_class(flatpak).startswith("org.chromium.Chromium-")
+
+
+def test_the_window_path_leads_to_the_interface(catalog):
+    from fastapi.testclient import TestClient
+
+    from ape.api.app import create_app
+
+    with TestClient(create_app(start_workers=False), base_url="http://127.0.0.1") as client:
+        answer = client.get(launcher.WINDOW_PATH, follow_redirects=False)
+    assert answer.status_code == 307
+    assert answer.headers["location"] == "/"
 
 
 def test_a_browser_that_is_not_there_is_not_invented(tmp_path):

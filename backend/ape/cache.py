@@ -22,15 +22,22 @@ Nothing records that a file was removed: a missing proxy is noticed where it
 is read (``api/routes_photos.py``) and queued again, marked as a restore, so
 its photo is not analysed a second time. Deleting the cache by hand is
 therefore as safe as this module doing it.
+
+**Deleting a project** takes its cache with it (:func:`project_files`, then
+:func:`remove_project_files`): left to the quota, the files of a project nobody
+will open again would sit there until the cache was full. Most of them are
+named after the *content* of a photo, not the photo, so a file is removed only
+when no photo of another project has the same content.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -45,6 +52,8 @@ __all__ = [
     "enforce",
     "limit_bytes",
     "maybe_enforce",
+    "project_files",
+    "remove_project_files",
     "usage",
 ]
 
@@ -244,4 +253,116 @@ def clear() -> dict[str, int]:
             freed += size
             removed += bool(size)
     _log.info("cache svuotata: %d file, %.2f GB", removed, freed / GB)
+    return {"removed": removed, "freed": freed}
+
+
+@dataclass(frozen=True, slots=True)
+class ProjectFiles:
+    """The cache files of one project that no other project needs."""
+
+    #: SHA-256 of the photos' identities: the names of proxies and previews.
+    digests: frozenset[str]
+    #: The photos themselves: the names of the developed thumbnails.
+    photo_ids: frozenset[int]
+    #: Merge recipes: the names of intermediates and merge previews.
+    merges: frozenset[str]
+
+
+def _recipe_digests(session: Any, groups: Iterable[Any]) -> set[str]:
+    from .merge.virtual import recipe_for
+
+    digests = set()
+    for group in groups:
+        preview = ((group.report or {}).get("preview") or {}).get("digest")
+        if preview:
+            digests.add(str(preview))
+        try:
+            digests.add(recipe_for(session, group).digest())
+        except Exception:  # noqa: BLE001 - a recipe that cannot be made has no file
+            continue
+    return digests
+
+
+def project_files(session: Any, project_id: int) -> ProjectFiles:
+    """What deleting the project may take out of the cache. Read before deleting it.
+
+    Proxies, previews and merges are named after the content, so the same RAW
+    imported into two projects has one proxy: what another project still uses
+    is left out here.
+    """
+    from sqlalchemy import select
+
+    from .db.models import MergeGroup, MergeMember, Photo
+
+    photos = session.execute(
+        select(Photo.id, Photo.hash).where(Photo.project_id == project_id)
+    ).all()
+    own_hashes = select(Photo.hash).where(Photo.project_id == project_id, Photo.hash.is_not(None))
+    shared = set(
+        session.scalars(
+            select(Photo.hash).where(Photo.project_id != project_id, Photo.hash.in_(own_hashes))
+        )
+    )
+    digests = frozenset(
+        hashlib.sha256((photo_hash or f"photo-{photo_id}").encode()).hexdigest()
+        for photo_id, photo_hash in photos
+        if photo_hash is None or photo_hash not in shared
+    )
+
+    merges = _recipe_digests(
+        session, session.scalars(select(MergeGroup).where(MergeGroup.project_id == project_id))
+    )
+    if merges and shared:
+        # A merge of the same shots in another project is the same file.
+        others = session.scalars(
+            select(MergeGroup)
+            .join(MergeMember, MergeMember.group_id == MergeGroup.id)
+            .join(Photo, Photo.id == MergeMember.photo_id)
+            .where(MergeGroup.project_id != project_id, Photo.hash.in_(shared))
+            .distinct()
+        )
+        merges -= _recipe_digests(session, others)
+
+    return ProjectFiles(
+        digests=digests,
+        photo_ids=frozenset(photo_id for photo_id, _ in photos),
+        merges=frozenset(merges),
+    )
+
+
+def remove_project_files(files: ProjectFiles) -> dict[str, int]:
+    """Remove the cache files of a deleted project. Returns ``removed`` and ``freed``.
+
+    Only cache: the hand-painted masks and the eraser's fills are kept, as
+    everywhere else in this module.
+    """
+    settings = get_settings()
+    removed = freed = 0
+
+    def drop(folder: Path, keep: Any) -> None:
+        nonlocal removed, freed
+        for entry in _files(folder):
+            if entry.name.startswith(".") or keep(entry.name):
+                continue
+            size = _remove(entry)
+            freed += size
+            removed += bool(size)
+
+    def sharded(root: Path, digests: frozenset[str]) -> None:
+        for digest in digests:
+            drop(root / digest[:2], lambda name, d=digest: not name.startswith(d))
+
+    sharded(settings.proxy_dir, files.digests)
+    sharded(settings.cache_dir / "previews", files.digests)
+    sharded(settings.intermediate_dir, files.merges)
+    if files.merges:
+        drop(
+            settings.merge_preview_dir,
+            lambda name: name[:64] not in files.merges,
+        )
+    if files.photo_ids:
+        ids = {str(photo_id) for photo_id in files.photo_ids}
+        drop(settings.cache_dir / "developed", lambda name: name.split("-", 1)[0] not in ids)
+
+    _log.info("progetto eliminato: rimossi %d file dalla cache, %.2f GB", removed, freed / GB)
     return {"removed": removed, "freed": freed}

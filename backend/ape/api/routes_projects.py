@@ -9,9 +9,9 @@ returns. Everything slow happens in the pool afterwards, with progress on the
 WebSocket, which is what keeps a thousand-photo import from being a request that
 times out.
 
-Deleting a project deletes rows. It never deletes photographs: section 2 puts
-the source folder out of reach of the whole program, and the export folder is
-the user's, not ours.
+Deleting a project deletes rows and the project's cache. It never deletes
+photographs: section 2 puts the source folder out of reach of the whole
+program, and the export folder is the user's, not ours.
 """
 
 from __future__ import annotations
@@ -19,10 +19,11 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from .. import cache
 from ..culling.service import enqueue_culling
 from ..db.models import Job, JobState, Photo, Project
 from ..importer import import_folder, remap_source, scan_folder
@@ -139,10 +140,23 @@ def update_project(
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_project(
-    project: Project = Depends(get_project), session: Session = Depends(get_session)
+    background: BackgroundTasks,
+    project: Project = Depends(get_project),
+    session: Session = Depends(get_session),
 ) -> None:
-    """Remove a project from the catalogue. No file on disk is touched."""
+    """Remove a project from the catalogue, and its files from the cache.
+
+    No photograph is touched, and neither are the hand-painted masks: only what
+    ``cache.py`` would regenerate.
+    """
+    files = cache.project_files(session, project.id)
     session.delete(project)
+    # Committed here rather than by ``get_session``, which does it after the
+    # response has gone: the list the home asks for the moment it reads the 204
+    # would otherwise still contain the project.
+    session.commit()
+    # Thousands of unlinks are not worth keeping the dialog open for.
+    background.add_task(cache.remove_project_files, files)
 
 
 @router.post("/{project_id}/import", response_model=ImportResponse)

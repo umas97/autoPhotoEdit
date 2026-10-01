@@ -26,14 +26,15 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from .. import __version__
 from ..config import get_settings
 from ..db.session import init_db
 from ..jobs.pool import WorkerPool
 from ..safety import SourceWriteError
+from ..window_id import WINDOW_PATH
 from . import (
     routes_analysis,
     routes_app,
@@ -151,6 +152,15 @@ def create_app(*, start_workers: bool = True, worker_count: int = 0) -> FastAPI:
             "workers": pool.workers if pool else 0,
             "workers_running": bool(pool and pool.running),
         }
+
+    @app.get(WINDOW_PATH, include_in_schema=False)
+    def window_entry() -> RedirectResponse:
+        """Where the window opens (``launcher.WINDOW_PATH``): on to the interface.
+
+        The path only gives the window an identity of its own in the dock;
+        Chromium fixes it when the window opens, so the redirect keeps it.
+        """
+        return RedirectResponse("/", status_code=status.HTTP_307_TEMPORARY_REDIRECT)
 
     # Last, deliberately: the interface is a catch-all route and would shadow
     # every API path registered after it.

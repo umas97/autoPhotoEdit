@@ -40,7 +40,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .config import APP_NAME, get_settings
+from .config import get_settings
 
 __all__ = [
     "AlreadyRunning",
@@ -54,11 +54,6 @@ __all__ = [
 ]
 
 _log = logging.getLogger(__name__)
-
-#: The ``WM_CLASS`` the window is started with, the one ``StartupWMClass``
-#: points at in the desktop entry (section 18), and the one the window manager
-#: is asked for when a second launch wants to raise it.
-WM_CLASS = APP_NAME
 
 
 @dataclass(frozen=True)
@@ -255,10 +250,16 @@ def raise_existing_window(info: LockInfo) -> bool:
     if info.window_pid is None or not _pid_alive(info.window_pid):
         return False
 
+    # The class the window was started with, the one ``StartupWMClass`` points
+    # at in the desktop entry (section 18).
+    from .window_id import window_class
+
+    wm_class = window_class()
+
     wmctrl = shutil.which("wmctrl")
     if wmctrl:
         result = subprocess.run(  # noqa: S603 - fixed argv, resolved path
-            [wmctrl, "-x", "-a", WM_CLASS], capture_output=True, check=False
+            [wmctrl, "-x", "-a", wm_class], capture_output=True, check=False
         )
         if result.returncode == 0:
             return True
@@ -266,7 +267,7 @@ def raise_existing_window(info: LockInfo) -> bool:
     xdotool = shutil.which("xdotool")
     if xdotool:
         result = subprocess.run(  # noqa: S603 - fixed argv, resolved path
-            [xdotool, "search", "--class", WM_CLASS, "windowactivate", "%1"],
+            [xdotool, "search", "--class", wm_class, "windowactivate", "%1"],
             capture_output=True,
             check=False,
         )

@@ -184,3 +184,49 @@ def test_a_restored_proxy_does_not_analyse_the_photo_again(catalog, tmp_path):
                 assert analyses == [], "un proxy ripristinato ha rifatto l'analisi"
             else:
                 assert len(analyses) == 1
+
+
+def test_deleting_a_project_takes_its_cache_and_leaves_what_others_share(
+    client: TestClient, catalog, tmp_path
+):
+    """The home shows the list without it at once, and the cache does not keep it."""
+    from ape.config import get_settings
+    from ape.db.models import Photo, Project
+    from ape.raw.embedded import preview_paths_for
+    from ape.raw.proxy import proxy_path_for
+    from ape.review.developed import developed_path
+
+    settings = get_settings()
+    with catalog() as session:
+        gone = Project(name="da eliminare", source_dir=str(tmp_path / "a"))
+        kept = Project(name="resta", source_dir=str(tmp_path / "b"))
+        session.add_all([gone, kept])
+        session.flush()
+        own = Photo(project_id=gone.id, filename="A.ARW", hash="a" * 64)
+        shared = Photo(project_id=gone.id, filename="S.ARW", hash="s" * 64)
+        other = Photo(project_id=kept.id, filename="S.ARW", hash="s" * 64)
+        session.add_all([own, shared, other])
+        session.commit()
+        gone_id, own_id, other_id = gone.id, own.id, other.id
+
+    def files(identity: str, photo_id: int) -> list[Path]:
+        previews = preview_paths_for(identity)
+        return [
+            _file(proxy_path_for(identity), 10, time.time()),
+            _file(previews.grid, 10, time.time()),
+            _file(previews.full, 10, time.time()),
+            _file(developed_path(photo_id, 1), 10, time.time()),
+        ]
+
+    own_files = files("a" * 64, own_id)
+    shared_files = files("s" * 64, other_id)
+    mask = _file(settings.masks_dir / f"{'m' * 64}.png", 10, time.time())
+
+    assert client.delete(f"/api/projects/{gone_id}").status_code == 204
+    # Committed before the answer, not after it: the list asked for next
+    # must already be without it.
+    assert [p["name"] for p in client.get("/api/projects").json()] == ["resta"]
+    assert not any(path.exists() for path in own_files)
+    # The same RAW in the other project keeps its proxy and its previews.
+    assert all(path.exists() for path in shared_files)
+    assert mask.exists()

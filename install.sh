@@ -4,9 +4,9 @@
 #
 # Installs autoPhotoEdit for the current user, as a desktop application
 # (docs/SPEC.md section 18): the launcher in ~/.local/bin, the icons in the
-# hicolor theme, the menu entry, whose StartupWMClass is the --class the
-# launcher gives the browser window -- which is what puts the right icon and
-# name in the dock instead of Chromium's.
+# hicolor theme, the menu entry, whose StartupWMClass is the identity the
+# browser window ends up with -- which is what puts the right icon and name in
+# the dock instead of Chromium's, or another local app's.
 #
 # Idempotent: running it again updates what it installed and nothing else.
 # Never uses sudo and never installs system packages: when something is
@@ -24,8 +24,6 @@ LAUNCHER="$BIN_DIR/autophotoedit"
 APPS_DIR="$DATA_HOME/applications"
 DESKTOP="$APPS_DIR/autophotoedit.desktop"
 ICONS_DIR="$DATA_HOME/icons/hicolor"
-# The class the launcher gives the window (backend/ape/single_instance.py, WM_CLASS).
-WM_CLASS="autophotoedit"
 MARK="# autoPhotoEdit launcher, written by install.sh"
 
 say() { printf '%s\n' "$*"; }
@@ -95,6 +93,12 @@ for size in 48 128 256; do
 done
 install -D -m 644 "$REPO/packaging/icons/autophotoedit.svg" "$ICONS_DIR/scalable/apps/autophotoedit.svg"
 
+# The identity of the window (backend/ape/launcher.py, window_class). Not a name
+# of our choosing: under Wayland Chromium derives it from the window's URL and
+# the browser installed, so it is asked of the code that opens the window.
+WM_CLASS="$("$PYTHON" -c "from ape.launcher import window_class; print(window_class())" 2>/dev/null || true)"
+[ -n "$WM_CLASS" ] || WM_CLASS="chrome-127.0.0.1__autophotoedit-Default"
+
 # Written and validated aside -- the validator wants the .desktop name -- then
 # moved in place, so the menu never sees half an entry.
 STAGING="$(mktemp -d)"
@@ -130,6 +134,7 @@ say ""
 say "autoPhotoEdit installato."
 say "  programma:     $LAUNCHER  →  $REPO/.venv/bin/autophotoedit"
 say "  voce di menu:  $DESKTOP"
+say "  finestra/dock: $WM_CLASS"
 say "  icone:         $ICONS_DIR/{48x48,128x128,256x256,scalable}/apps/"
 say "  i tuoi dati:   ${XDG_DATA_HOME:-$HOME/.local/share}/autophotoedit/ (creata al primo avvio)"
 if [ -n "$BROWSER" ]; then
