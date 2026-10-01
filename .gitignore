@@ -1,0 +1,40 @@
+# Ambiente Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+
+# Build del frontend committata solo ai tag di release (docs/SPEC.md §18.3)
+backend/ape/static/*
+!backend/ape/static/.gitkeep
+
+# Modelli ONNX: scaricati on-demand, mai committati (§17)
+models/*
+!models/LICENSES.md
+
+# File di esempio dell'utente: mai committati (§27.3)
+tests/fixtures/*
+!tests/fixtures/README.md
+tests/rawEdited/
+
+# Output locali
+/out/
+*.orig
+
+# Diario di sviluppo: resta in locale
+/STATO.md
+
+# Editor e sistema
+.vscode/
+.idea/
+.DS_Store

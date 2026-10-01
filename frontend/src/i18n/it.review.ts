@@ -1,0 +1,116 @@
+// autoPhotoEdit -- automatic post-production for Sony RAW files.
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// The strings of phase 7 -- the review, the confidence and its reasons, the
+// variants, the corrections -- kept apart so that it.ts stays readable. They
+// are spread into the one table there.
+export const review = {
+  'nav.review': 'Revisione',
+
+  'review.title': 'Revisione',
+  'review.tabGrid': 'Griglia',
+  'review.tabScenes': 'Scene ({done}/{total})',
+  'review.tabQueue': 'Coda ({count})',
+  'review.noStyle': 'Scegli prima uno stile per il progetto: la revisione parte dalle sue predizioni.',
+  'review.chooseStyle': 'Scegli lo stile',
+  'review.pending': 'Predizione in corso: {count} foto ancora da sviluppare.',
+  'review.empty': 'Nessuna foto da rivedere.',
+  'review.queueEmpty': 'La coda è vuota: nessuna foto ha bisogno di una revisione singola.',
+  'review.summary': '{approved} approvate su {total} · {queue} in coda',
+  'review.allDone': 'Revisione completa: tutte le foto sono approvate.',
+
+  'review.scene': 'Scena {n}',
+  'review.scenePhotos': '{count} foto',
+  'review.sceneQueued': '{count} in coda',
+  'review.sceneState.pending': 'da vedere',
+  'review.sceneState.approved': 'approvata',
+  'review.sceneState.rejected': 'rifiutata',
+  'review.representative': 'Rappresentante della scena',
+  'review.membersHint': 'Le altre foto della scena: una correzione del rappresentante si applica a tutte come differenza.',
+  'review.inspecting': 'Stai guardando {name}, non il rappresentante.',
+  'review.backToRepresentative': 'Torna al rappresentante',
+
+  'review.approve': 'Approva',
+  'review.reject': 'Rifiuta',
+  'review.applyScene': 'Applica alla scena',
+  'review.approveScene': 'Approva la scena',
+  'review.rejectScene': 'Rifiuta la scena',
+  'review.resetDecision': 'Annulla la decisione',
+  'review.rejectHintPhoto': 'Rifiuta: lo stile torna al Neutro automatico e la foto resta in coda.',
+  'review.rejectHintScene': 'Rifiuta: tutte le foto della scena passano alla coda singola.',
+  'review.propagated': 'Correzione applicata ad altre {count} foto della scena.',
+  'review.undone': 'Annullato.',
+  'review.nothingToUndo': 'Niente da annullare.',
+  'review.decided.approved': 'Approvata',
+  'review.decided.rejected': 'Rifiutata: da sistemare a mano',
+
+  'review.before': 'Prima',
+  'review.compare': 'Affiancato',
+  'review.zoom': '1:1',
+  'review.zoomHint': 'Lo zoom 1:1 è sull’anteprima di sviluppo (2048 px), non sul sensore.',
+  'review.shortcuts':
+    '←/→ naviga · A approva · R rifiuta · Spazio o \\ prima/dopo · 1–3 variante · Z zoom · C affiancato · M maschere · Ctrl+Z annulla · ? tutte',
+
+  'review.gridSummary': '{pending} scene da vedere · {selected} selezionate',
+  'review.gridSelectPending': 'Seleziona le scene da vedere',
+  'review.gridSelectNone': 'Nessuna',
+  'review.gridApprove': 'Approva le selezionate ({count})',
+  'review.gridApproved': '{count} scene approvate.',
+  'review.gridHint':
+    'Clic seleziona · doppio clic o Invio apre la scena · ←/→ e Spazio da tastiera · A approva le selezionate · Esc deseleziona · Ctrl+Z annulla. Le foto con ! restano in coda singola.',
+
+  'review.confidence': 'Confidenza {value}%',
+  'review.confidenceUnknown': 'Confidenza non ancora calcolata',
+  'review.threshold': 'soglia {value}%',
+  'review.why': 'Perché',
+  'review.reason.far': 'Scena lontana dai tuoi sample',
+  'review.reason.ambiguous': 'I sample più vicini sono editati in modi diversi',
+  'review.reason.extrapolation': 'Esposizione fuori dal campo dei sample',
+  'review.reason.white_balance': 'Bilanciamento del bianco ambiguo: luce mista o colore dominante',
+  'review.reason.burnt': 'Luci bruciate dopo l’edit ({value}%)',
+  'review.reason.crushed': 'Ombre chiuse dopo l’edit ({value}%)',
+  'review.reason.geometry': 'Raddrizzamento incerto: linee contraddittorie o poco affidabili',
+  'review.reason.lens': 'Obiettivo senza profilo lensfun',
+  'review.reason.rejected': 'Edit rifiutato: da sistemare a mano',
+  'review.reason.scene_rejected': 'Scena rifiutata in revisione',
+
+  'review.variants': 'Varianti',
+  'review.variantsHint': 'Premi 1, 2 o 3 per provarne una, poi A per approvare.',
+  'review.variant.neighbours': 'Come i sample vicini',
+  'review.variant.brighter': 'Mezzo stop più chiara',
+  'review.variant.darker': 'Mezzo stop più scura',
+  'review.variant.neutral': 'Neutro automatico',
+  'review.variant.camera_wb': 'Bianco della fotocamera',
+  'review.variant.auto_wb': 'Bianco automatico',
+  'review.variant.no_rotation': 'Senza raddrizzamento',
+  'review.variantCurrent': 'Attuale',
+
+  'review.settings': 'Soglia e pesi',
+  'review.settingsTitle': 'Confidenza: soglia e pesi',
+  'review.settingsBody':
+    'Sotto la soglia una foto va in revisione singola. Ogni peso dice quanto conta quel dubbio: a 0 è ignorato.',
+  'review.thresholdLabel': 'Soglia di revisione',
+  'review.weight.far': 'Scena lontana dai sample',
+  'review.weight.ambiguous': 'Sample vicini in disaccordo',
+  'review.weight.extrapolation': 'Esposizione fuori campo',
+  'review.weight.white_balance': 'Luce mista',
+  'review.weight.burnt': 'Luci bruciate',
+  'review.weight.crushed': 'Ombre chiuse',
+  'review.weight.geometry': 'Raddrizzamento incerto',
+  'review.weight.lens': 'Obiettivo senza profilo',
+  'review.defaults': 'Valori predefiniti',
+
+  'review.feedback': 'Correzioni ({count})',
+  'review.feedbackTitle': 'Le tue correzioni',
+  'review.feedbackBody':
+    'Ogni foto che hai corretto e approvato è una nuova coppia di addestramento. Non entra nel profilo finché non lo confermi.',
+  'review.feedbackLearned': 'Le {count} correzioni diventano sample del profilo «{name}», che viene riaddestrato.',
+  'review.feedbackBuiltin':
+    '«{name}» è un profilo predefinito e non si addestra: le {count} correzioni formano un nuovo profilo appreso.',
+  'review.feedbackName': 'Nome del nuovo profilo',
+  'review.feedbackFew': 'Servono almeno 2 correzioni per addestrare un profilo.',
+  'review.incorporate': 'Incorpora nel profilo',
+  'review.discard': 'Scarta le correzioni',
+  'review.incorporated': 'Correzioni incorporate in «{name}».',
+  'review.feedbackNone': 'Nessuna correzione ancora: approva una foto dopo averla modificata.',
+} as const

@@ -1,0 +1,45 @@
+// autoPhotoEdit -- automatic post-production for Sony RAW files.
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// The words of the shortcuts list (?), screen by screen; the keys themselves
+// are in lib/shortcuts.ts. Spread into the one table in it.ts.
+export const shortcuts = {
+  'shortcuts.title': 'Scorciatoie da tastiera',
+  'shortcuts.description': 'Valgono quando il cursore non è in un campo di testo.',
+  'shortcuts.section.everywhere': 'Ovunque',
+  'shortcuts.section.viewer': 'Visualizzatore',
+  'shortcuts.section.masks': 'Maschere e rimozione (Visualizzatore e Revisione)',
+  'shortcuts.section.review': 'Revisione',
+  'shortcuts.section.reviewGrid': 'Revisione, scheda Griglia',
+  'shortcuts.section.culling': 'Cernita',
+  'shortcuts.otherScreens': 'Le altre schermate',
+
+  'shortcuts.help': 'Questo elenco',
+  'shortcuts.navigate': 'Foto precedente / successiva',
+  'shortcuts.before': 'Tieni premuto: prima / dopo',
+  'shortcuts.undo': 'Annulla l’ultimo gesto',
+  'shortcuts.redo': 'Ripristina il gesto annullato',
+  'shortcuts.save': 'Salva subito (si salva comunque da solo)',
+  'shortcuts.masksTab': 'Apri le maschere',
+  'shortcuts.adjustTab': 'Torna alle regolazioni globali',
+  'shortcuts.showSelection': 'Mostra / nascondi la selezione in rosso',
+  'shortcuts.deleteMask': 'Elimina la maschera o la rimozione selezionata',
+  'shortcuts.deselect': 'Lascia la maschera o la rimozione selezionata',
+  'shortcuts.brushErase': 'Tieni premuto mentre dipingi: cancella',
+  'shortcuts.approve': 'Approva (la scena o la foto)',
+  'shortcuts.reject': 'Rifiuta (la scena o la foto)',
+  'shortcuts.variant': 'Scegli una variante',
+  'shortcuts.zoom': 'Zoom 1:1',
+  'shortcuts.compare': 'Prima e dopo affiancati',
+  'shortcuts.undoReview': 'Annulla il gesto, poi l’ultima azione di revisione',
+  'shortcuts.gridApprove': 'Approva le scene selezionate',
+  'shortcuts.gridMove': 'Scena precedente / successiva',
+  'shortcuts.gridSelect': 'Seleziona / deseleziona la scena',
+  'shortcuts.gridOpen': 'Apri la scena',
+  'shortcuts.gridClear': 'Deseleziona tutto',
+  'shortcuts.discard': 'Scarta',
+  'shortcuts.keep': 'Tieni',
+  'shortcuts.burst': 'Cambia la scelta nella raffica',
+  'shortcuts.cullCompare': 'Confronta',
+  'shortcuts.cullUndo': 'Annulla l’ultima scelta',
+} as const

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img"
+     aria-label="autoPhotoEdit">
+  <rect width="512" height="512" rx="112" fill="#111111"/>
+  <g transform="translate(256 256)">
+    <circle r="174" fill="#d4d4d4" stroke="#8a8a8a" stroke-width="10"/>
+    <g stroke="#111111" stroke-width="30" stroke-linecap="butt">
+      <line x1="48.9" y1="-17.8" x2="190.2" y2="61.8"/>
+      <line x1="39.8" y1="33.4" x2="41.6" y2="195.6"/>
+      <line x1="-9.0" y1="51.2" x2="-148.6" y2="133.8"/>
+      <line x1="-48.9" y1="17.8" x2="-190.2" y2="-61.8"/>
+      <line x1="-39.8" y1="-33.4" x2="-41.6" y2="-195.6"/>
+      <line x1="9.0" y1="-51.2" x2="148.6" y2="-133.8"/>
+    </g>
+    <circle r="38" fill="#111111"/>
+  </g>
+</svg>

@@ -1,0 +1,93 @@
+[project]
+name = "autophotoedit"
+version = "0.1.0"
+description = "Post-produzione automatica di RAW Sony, in locale e non distruttiva"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "autoPhotoEdit contributors" }]
+
+# Phase 1 needs only the imaging core. Dependencies for later phases are listed
+# here too when they are cheap to install, and behind extras when they pull in
+# system libraries that the target machine may not have yet (lensfun).
+dependencies = [
+    "numpy>=2.1,<3",
+    "opencv-python-headless>=4.10,<5",
+    "scipy>=1.14,<2",
+    "rawpy>=0.23",
+    "colour-science>=0.4.4",
+    "pydantic>=2.9,<3",
+    "pydantic-settings>=2.5,<3",
+    "pillow>=11.0",
+]
+
+[project.optional-dependencies]
+# exiv2 bindings. GPL-3.0 -- see NOTICE.md and docs/SPEC.md section 24.
+# Isolated so that a machine without libexiv2 can still run the pipeline.
+metadata = ["pyexiv2>=2.12"]
+# Lens correction profiles, needs the lensfun system library + data.
+lens = ["lensfunpy>=1.14"]
+# ML inference, CPU execution provider only. Never PyTorch at runtime.
+ml = ["onnxruntime>=1.19,<2"]
+# Catalogue, jobs and the local server (phase 2+).
+server = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "sqlalchemy>=2.0,<3",
+    "alembic>=1.13",
+    "websockets>=13.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+    "ruff>=0.7",
+    # Drives FastAPI's TestClient: the API tests talk to the app in process,
+    # without a port and without a live server.
+    "httpx>=0.27",
+]
+
+[project.scripts]
+autophotoedit = "ape.__main__:main"
+ape = "ape.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend/ape"]
+
+[tool.uv]
+package = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["backend"]
+markers = [
+    "fixtures: requires real ARW files in tests/fixtures/ (skipped when absent)",
+    "slow: benchmarks and full-resolution runs",
+]
+filterwarnings = ["error::DeprecationWarning:ape.*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["backend", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "NPY"]
+
+[tool.coverage.run]
+source = ["backend/ape"]
+
+[tool.ruff.lint.per-file-ignores]
+# `Depends(...)` in a default argument is how FastAPI declares a dependency.
+# The rule is right in general and wrong here.
+"backend/ape/api/*" = ["B008"]
+# The benchmark has to extend sys.path before it can import the package it is
+# benchmarking, so its imports cannot come first.
+"tests/bench/*" = ["E402", "I001"]
+# lensfun's calibration lines, quoted verbatim as the database writes them.
+"tests/test_lens.py" = ["E501"]
