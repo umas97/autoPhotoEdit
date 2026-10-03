@@ -18,7 +18,9 @@ straightening becomes the rotation of the photo's *first* version only if it
 has no version yet, and a crop is only ever a pending proposal.
 
 The payload ``{"photo_id": n, "only": "embedding"}`` computes the embedding
-alone, for the photos analysed before the model was downloaded.
+alone, for the photos analysed before the model was downloaded; with
+``"only": "crop"``, the crop proposal alone, for the photos whose pending one
+an older build made in a ratio no longer proposed.
 """
 
 from __future__ import annotations
@@ -152,6 +154,16 @@ def run_analyze(record: JobRecord, progress: Callable[[float], None]) -> None:
             raise
     image = _read_rgb(proxy_path)
     progress(0.2)
+
+    if only == "crop":
+        proposal = None
+        if not paused and not decided:
+            rotation = float((analysis.get("straighten") or {}).get("rotation_deg") or 0.0)
+            proposal = _propose(image, rotation)
+        with session_scope(maker) as session:
+            if session.get(Photo, photo_id) is not None:
+                _write_proposal(session, photo_id, proposal)
+        return
 
     if only == "embedding":
         vector = embed.embed(image)

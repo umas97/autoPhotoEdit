@@ -11,7 +11,8 @@ needs the whole project runs here, in the server, on numbers already stored:
 * **the lens summary** -- which lenses the project uses, which have a lensfun
   profile, which the user associated by hand;
 * **enqueueing** -- the analyses a project is missing, e.g. a catalogue from
-  before phase 5, or the embeddings after the model was downloaded.
+  before phase 5, or the embeddings after the model was downloaded; and the
+  crop proposals of an older build in a ratio no longer proposed.
 
 The photos that count are the ones in the editing flow: not culled, not
 missing. A photo recovered from the discards gets a proxy, then an analysis,
@@ -48,6 +49,7 @@ __all__ = [
     "lens_summary",
     "pending_analyses",
     "record_crop_decision",
+    "retire_stale_proposals",
     "scenes",
 ]
 
@@ -90,6 +92,45 @@ def enqueue_missing(session: Session, project_id: int, *, embeddings: bool = Fal
         elif embeddings and photo.embedding is None:
             added += int(enqueue_analysis(session, photo, only="embedding"))
     return added
+
+
+def retire_stale_proposals(session: Session) -> int:
+    """Propose again, in the frame's own ratio, what older builds proposed in another.
+
+    Builds before this one proposed 4:5, 16:9 and 1:1 too. A pending proposal
+    in one of those is deleted and the photo's crop alone is computed again
+    (``analyze`` with ``only="crop"``). Decided proposals are the user's and
+    stay as they are, and so does any crop already applied. Idempotent: run at
+    every start, it finds nothing the second time.
+
+    Returns:
+        How many photos were queued.
+    """
+    from ..jobs.handlers_analysis import enqueue_analysis
+    from .crop import ALLOWED_ASPECTS
+
+    stale = session.scalars(
+        select(CropProposal).where(
+            CropProposal.decision == CropDecision.PENDING,
+            CropProposal.aspect.is_not(None),
+            CropProposal.aspect.not_in(ALLOWED_ASPECTS),
+        )
+    ).all()
+    photo_ids = sorted({proposal.photo_id for proposal in stale})
+    for proposal in stale:
+        session.delete(proposal)
+    session.flush()
+    queued = 0
+    for photo_id in photo_ids:
+        photo = session.get(Photo, photo_id)
+        if photo is not None and photo.proxy_path:
+            queued += int(enqueue_analysis(session, photo, only="crop"))
+    if stale:
+        _log.info(
+            "%d proposte di crop in un rapporto non originale ritirate, %d foto da riproporre",
+            len(stale), queued,
+        )
+    return queued
 
 
 def ensure_clustered(session: Session, project_id: int, *, force: bool = False) -> bool:

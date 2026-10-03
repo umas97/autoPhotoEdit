@@ -58,6 +58,20 @@ def test_an_off_centre_subject_gets_a_crop_that_keeps_it_on_a_third():
     assert proposal.score > proposal.baseline
 
 
+def test_the_default_proposal_keeps_the_frames_own_ratio_exactly():
+    # 3:2 stays 3:2 -- and 2:3 stays 2:3 -- to the last digit, not to the
+    # rounding of the small copy the search runs on.
+    for frame in (_subject_frame(0.78, 0.5), _subject_frame(0.5, 0.78, width=400, height=600)):
+        proposal = crop.propose_crop(frame)
+        if proposal is None:
+            continue
+        assert proposal.aspect == "original"
+        assert proposal.width == pytest.approx(proposal.height, abs=1e-12)
+        assert proposal.x + proposal.width <= 1 + 1e-12
+        assert proposal.y + proposal.height <= 1 + 1e-12
+    assert crop.ASPECTS == ("original",)
+
+
 def test_a_frame_with_nothing_to_crop_for_gets_no_proposal():
     rng = np.random.default_rng(4)
     texture = cv2.GaussianBlur(rng.integers(0, 255, (400, 600, 3), dtype=np.uint8), (0, 0), 2)

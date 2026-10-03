@@ -22,6 +22,14 @@ The uncropped frame is scored the same way and a candidate is proposed only if
 it beats it by a clear margin: a proposal that is not obviously better is noise
 the user has to reject.
 
+**Only the camera's own ratio.** A proposal keeps the proportions of the frame
+it is made on -- 3:2 or 2:3 for a single shot, whatever the stitching gave a
+panorama -- because a photographer's set of pictures should not come back in
+four different shapes. Any other ratio is the user's choice, drawn by hand in
+the viewer; :data:`ALLOWED_ASPECTS` is what a pending proposal may carry, and
+the ones written by older builds with other ratios are proposed again
+(``analysis/service.retire_stale_proposals``).
+
 Coordinates are normalised to the image given -- the straightened frame, which
 is what ``CropRect`` is relative to.
 """
@@ -35,11 +43,17 @@ import numpy as np
 
 from .saliency import saliency_map
 
-__all__ = ["ASPECTS", "CropSuggestion", "propose_crop", "score_rect"]
+__all__ = ["ALLOWED_ASPECTS", "ASPECTS", "CropSuggestion", "propose_crop", "score_rect"]
 
-#: Aspect ratios tried, oriented like the frame: "4:5" on a landscape frame is
-#: 5:4. ``original`` is a tighter crop that keeps the camera's own ratio.
-ASPECTS: tuple[str, ...] = ("original", "4:5", "16:9", "1:1")
+#: Aspect ratios tried by default: ``original``, a tighter crop that keeps the
+#: frame's own ratio. Others ("4:5", "16:9", "1:1", oriented like the frame:
+#: "4:5" on a landscape frame is 5:4) can still be asked for explicitly.
+ASPECTS: tuple[str, ...] = ("original",)
+
+#: What a pending proposal may carry: the frame's ratio, or the clean rectangle
+#: of a panorama (``analysis/borders.BORDERS_ASPECT``), whose ratio is the
+#: stitching's.
+ALLOWED_ASPECTS: frozenset[str] = frozenset({"original", "borders"})
 
 #: Fractions of the largest crop of each ratio that are tried.
 _SCALES = (1.0, 0.92, 0.84, 0.76, 0.68)
@@ -168,7 +182,7 @@ def propose_crop(
 
     Args:
         image: the straightened frame, display-referred RGB (uint8 or 0..1).
-        aspects: the ratios to try, from :data:`ASPECTS`.
+        aspects: the ratios to try; by default only the frame's own (:data:`ASPECTS`).
     """
     salience = saliency_map(image)
     height, width = salience.shape
@@ -176,7 +190,7 @@ def propose_crop(
     baseline = score_rect(integral, (height, width), 0, 0, width, height)
     frame_ratio = width / height
 
-    best: tuple[float, int, int, int, int, str] | None = None
+    best: tuple[float, int, int, int, int, str, float, float] | None = None
     for aspect in aspects:
         ratio = _ratio(aspect, frame_ratio)
         if ratio >= frame_ratio:
@@ -194,15 +208,20 @@ def propose_crop(
                     x0, y0 = round(fx * (width - cw)), round(fy * (height - ch))
                     score = score_rect(integral, (height, width), x0, y0, x0 + cw, y0 + ch)
                     if best is None or score > best[0]:
-                        best = (score, x0, y0, cw, ch, aspect)
+                        best = (score, x0, y0, cw, ch, aspect, full_w * scale, full_h * scale)
     if best is None or best[0] < baseline + _MARGIN:
         return None
-    score, x0, y0, cw, ch, aspect = best
+    score, x0, y0, cw, ch, aspect, exact_w, exact_h = best
+    # The rectangle is written from the unrounded size: the search runs on a
+    # small copy, and a pixel of rounding there is a visible error in the
+    # ratio of the full-size crop. ``original`` comes out with width equal to
+    # height, which is the frame's ratio exactly.
+    nw, nh = min(1.0, exact_w / width), min(1.0, exact_h / height)
     return CropSuggestion(
-        x=x0 / width,
-        y=y0 / height,
-        width=min(1.0 - x0 / width, cw / width),
-        height=min(1.0 - y0 / height, ch / height),
+        x=min(x0 / width, 1.0 - nw),
+        y=min(y0 / height, 1.0 - nh),
+        width=nw,
+        height=nh,
         aspect=aspect,
         score=round(score, 4),
         baseline=round(baseline, 4),

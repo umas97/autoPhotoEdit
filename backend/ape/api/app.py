@@ -66,11 +66,13 @@ _log = logging.getLogger(__name__)
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     init_db()
+    from ..analysis.service import retire_stale_proposals
     from ..db.session import session_scope
     from ..style.profile import ensure_builtins
 
     with session_scope() as session:
         ensure_builtins(session)
+        retire_stale_proposals(session)
 
     pool: WorkerPool | None = None
     if app.state.start_workers:

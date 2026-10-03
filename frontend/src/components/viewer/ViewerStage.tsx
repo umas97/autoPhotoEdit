@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The middle of the viewer: the photograph, what is drawn over it -- the crop
-// proposal, the masks' handles and selection, the banners -- and the line of
+// proposal or the crop being drawn, the masks' handles and selection, the
+// banners -- and the line of
 // facts under it with the measured render time (section 10).
 //
 // Every pixel of the photo comes from the pipeline through the preview
@@ -15,6 +16,7 @@ import type { EditParams, Photo, PhotoDetail } from '../../lib/types'
 import { t } from '../../i18n/it'
 import { cn, formatShutter } from '../../lib/utils'
 import { CropProposalLayer } from '../CropOverlay'
+import { CropTool, type CropEditor } from '../crop'
 import { MaskLayer } from '../masks/MaskLayer'
 import type { MaskEditor } from '../masks/useMaskEditor'
 import { Button } from '../ui/Button'
@@ -32,6 +34,7 @@ export function ViewerStage({
   dragging,
   flush,
   editor,
+  crop,
   imageRef,
 }: {
   projectId: number
@@ -47,6 +50,7 @@ export function ViewerStage({
   /** Write the edit waiting for the autosave, before an action that reads it. */
   flush: () => Promise<void>
   editor: MaskEditor
+  crop: CropEditor
   imageRef: MutableRefObject<HTMLImageElement | null>
 }) {
   const queryClient = useQueryClient()
@@ -89,16 +93,17 @@ export function ViewerStage({
                 detail={own}
                 params={params}
                 flush={flush}
-                visible={developed && !dragging && editor.tab !== 'masks'}
+                visible={developed && !dragging && editor.tab !== 'masks' && !crop.active}
                 imageRef={imageRef}
                 onUpdated={(updated) => queryClient.setQueryData(['photo', updated.id], updated)}
               />
             ) : null}
             {params && !current.missing ? (
               <MaskLayer editor={editor} photo={current} params={params} onChange={onChange}
-                imageRef={imageRef} dragging={dragging} visible={developed && !comparing}
-                flush={flush} />
+                imageRef={imageRef} dragging={dragging}
+                visible={developed && !comparing && !crop.active} flush={flush} />
             ) : null}
+            {showBefore ? null : <CropTool editor={crop} imageRef={imageRef} />}
             {detail?.crop_proposals_paused ? (
               <div className="absolute bottom-5 left-5 flex items-center gap-2 rounded bg-ink-950/80 px-2 py-1 text-xs text-ink-200">
                 {t('crop.paused')}

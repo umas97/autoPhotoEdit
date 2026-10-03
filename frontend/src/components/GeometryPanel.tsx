@@ -9,21 +9,28 @@
 // is the fix section 6.4 asks for. The rotation says what the analysis found:
 // levelled by so much, already level, or left alone and why. A photographer
 // who disagrees with an automatic choice should be able to see it was one.
-import { ChevronDown, Crop, RotateCcw } from 'lucide-react'
+//
+// The crop says its ratio. "Ritaglia" opens the hand-drawn crop, held to the
+// frame's own ratio unless another one is chosen here (components/crop).
+import { ArrowLeftRight, Check, ChevronDown, Crop, Maximize, RotateCcw, X } from 'lucide-react'
 import type { EditParams } from '../lib/types'
 import type { PhotoAnalysis } from '../lib/analysisTypes'
+import { CROP_ASPECTS, ratioLabel, rectRatio, targetRatio, type CropAspect } from '../lib/crop'
 import { t } from '../i18n/it'
 import { useUi } from '../lib/store'
 import { cn } from '../lib/utils'
 import { Button } from './ui/Button'
 import { Checkbox } from './ui/Field'
 import { Slider } from './ui/Slider'
+import type { CropEditor } from './crop'
 
 export interface GeometryPanelProps {
   params: EditParams
   analysis: PhotoAnalysis | null
   onChange: (next: EditParams, commit: boolean) => void
   onAssociateLens: () => void
+  /** The hand-drawn crop. Without it the panel only shows and removes the crop. */
+  crop?: CropEditor
   disabled?: boolean
 }
 
@@ -57,11 +64,68 @@ function straightenLine(analysis: PhotoAnalysis | null): string | null {
   }
 }
 
+function aspectLabel(choice: CropAspect, flipped: boolean, aspect: number): string {
+  if (choice === 'free') return t('geometry.cropAspect.free')
+  const ratio = ratioLabel(targetRatio(choice, flipped, aspect)!)
+  return choice === 'original' ? t('geometry.cropAspect.original', { ratio }) : ratio
+}
+
+/** The open crop tool: the ratio, its orientation, and the two answers. */
+function CropControls({ editor, aspect }: { editor: CropEditor; aspect: number }) {
+  return (
+    <div className="space-y-1.5 px-1.5 pt-1">
+      <div className="flex flex-wrap gap-1" role="radiogroup" aria-label={t('geometry.cropAspect')}>
+        {CROP_ASPECTS.map((choice) => (
+          <Button
+            key={choice}
+            size="sm"
+            variant={editor.choice === choice ? 'secondary' : 'ghost'}
+            role="radio"
+            aria-checked={editor.choice === choice}
+            onClick={() => editor.choose(choice)}
+          >
+            {aspectLabel(choice, editor.choice === choice && editor.flipped, aspect)}
+          </Button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={editor.ratio === null || Math.abs(editor.ratio - 1) < 1e-6}
+          onClick={editor.flip}
+        >
+          <ArrowLeftRight size={12} />
+          {t('geometry.cropFlip')}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={editor.reset}>
+          <Maximize size={12} />
+          {t('geometry.cropReset')}
+        </Button>
+      </div>
+      <p className="text-xs text-ink-400">
+        {editor.choice === 'original' ? t('geometry.cropHintOriginal') : t('geometry.cropHintOther')}
+      </p>
+      <div className="flex justify-end gap-1">
+        <Button size="sm" variant="ghost" onClick={editor.cancel}>
+          <X size={12} />
+          {t('geometry.cropCancel')}
+        </Button>
+        <Button size="sm" variant="primary" onClick={editor.apply}>
+          <Check size={12} />
+          {t('geometry.cropApply')}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 export function GeometryPanel({
   params,
   analysis,
   onChange,
   onAssociateLens,
+  crop: editor,
   disabled,
 }: GeometryPanelProps) {
   const collapsed = useUi((state) => state.collapsedGroups)
@@ -70,6 +134,7 @@ export function GeometryPanel({
   const geometry = params.geometry
   const automatic = analysis?.straighten?.rotation_deg ?? 0
   const crop = geometry.crop
+  const aspect = editor?.aspect ?? null
 
   const set = (change: Partial<EditParams['geometry']>, commit: boolean) => {
     const next = structuredClone(params)
@@ -138,18 +203,31 @@ export function GeometryPanel({
             <span className="flex items-center gap-1.5">
               <Crop size={12} />
               {crop
-                ? t('geometry.cropSet', {
+                ? t(aspect ? 'geometry.cropSetRatio' : 'geometry.cropSet', {
+                    ratio: aspect ? ratioLabel(rectRatio(crop, aspect)) : '',
                     w: Math.round(crop.width * 100),
                     h: Math.round(crop.height * 100),
                   })
                 : t('geometry.cropNone')}
             </span>
-            {crop ? (
-              <Button size="sm" variant="ghost" disabled={disabled} onClick={() => set({ crop: null }, true)}>
-                {t('geometry.cropClear')}
-              </Button>
-            ) : null}
+            {editor?.active ? null : (
+              <span className="flex gap-1">
+                {editor ? (
+                  <Button size="sm" variant="ghost" disabled={disabled || !aspect}
+                    onClick={editor.start}>
+                    {t('geometry.cropEdit')}
+                  </Button>
+                ) : null}
+                {crop ? (
+                  <Button size="sm" variant="ghost" disabled={disabled}
+                    onClick={() => set({ crop: null }, true)}>
+                    {t('geometry.cropClear')}
+                  </Button>
+                ) : null}
+              </span>
+            )}
           </div>
+          {editor?.active && aspect ? <CropControls editor={editor} aspect={aspect} /> : null}
         </div>
       ) : null}
     </section>

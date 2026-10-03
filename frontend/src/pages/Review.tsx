@@ -37,10 +37,9 @@ import type { EditParams } from '../lib/types'
 import type { UndoRecord } from '../lib/reviewTypes'
 import { t } from '../i18n/it'
 import { AppShell } from '../components/AppShell'
-import { CropProposalLayer } from '../components/CropOverlay'
 import { GeometryPanel } from '../components/GeometryPanel'
+import { useCropEditor, useShownParams } from '../components/crop'
 import { EditSidebar } from '../components/masks/EditSidebar'
-import { MaskLayer } from '../components/masks/MaskLayer'
 import { handleMaskKey } from '../components/masks/shortcuts'
 import { useMaskEditor } from '../components/masks/useMaskEditor'
 import { useRetouchWatch } from '../components/retouch/useRetouch'
@@ -52,6 +51,7 @@ import { ReviewActions, type ReviewAction } from '../components/review/ReviewAct
 import { FeedbackDialog, ReviewSettingsDialog } from '../components/review/ReviewDialogs'
 import { SceneStrip } from '../components/review/ReviewList'
 import { ReviewSidebar, type ReviewTab as Tab } from '../components/review/ReviewSidebar'
+import { ReviewOverlay } from '../components/review/ReviewOverlay'
 import { ReviewStage } from '../components/review/ReviewStage'
 import { SceneGrid } from '../components/review/SceneGrid'
 import { VariantStrip } from '../components/review/VariantStrip'
@@ -100,11 +100,12 @@ export function ReviewPage() {
   const { params, dragging, onChange, stepBack, stepForward, saveState, flush, base, edited, settle } =
     useEditState(detail.data, photoId)
   const editor = useMaskEditor(photoId, params?.masks.length ?? 0)
+  const crop = useCropEditor(photo, params, onChange)
 
   const [compareParams, setCompareParams] = useState<EditParams | null>(null)
   useEffect(() => setCompareParams(null), [photoId])
   const revision = useRetouchWatch(id, photoId)
-  const preview = usePreview(photoId, compareParams ?? params, dragging, { retouch: editor.showRemovals, revision })
+  const preview = usePreview(photoId, useShownParams(compareParams ?? params, crop), dragging, { retouch: editor.showRemovals, revision })
 
   const [showBefore, setShowBefore] = useState(false)
   const [zoom, setZoom] = useState(false)
@@ -324,15 +325,11 @@ export function ReviewPage() {
                 {photo ? (
                   <ReviewStage photo={photo} previewUrl={preview.url} showBefore={showBefore} zoom={zoom}
                     compare={compare} imageRef={imageRef}
-                    overlay={detail.data && detail.data.id === photo.id ? (<>
-                      <CropProposalLayer detail={detail.data} params={params} flush={flush}
-                        visible={!dragging && preview.url !== null && editor.tab !== 'masks'} imageRef={imageRef}
-                        onUpdated={(updated) => queryClient.setQueryData(['photo', updated.id], updated)} />
-                      {params && !inspecting ? (
-                        <MaskLayer editor={editor} photo={photo} params={params} onChange={onChange} imageRef={imageRef}
-                          dragging={dragging} visible={preview.url !== null && compareParams === null} flush={flush} />
-                      ) : null}
-                    </>) : null} />
+                    overlay={detail.data && detail.data.id === photo.id ? (
+                      <ReviewOverlay detail={detail.data} photo={photo} params={params} onChange={onChange} flush={flush}
+                        editor={editor} crop={crop} imageRef={imageRef} dragging={dragging} rendered={preview.url !== null}
+                        comparing={compareParams !== null} inspecting={inspecting} />
+                    ) : null} />
                 ) : (
                   <p className="grid h-full place-items-center text-sm text-ink-400">
                     {overview.isLoading ? t('common.loading') : t(tab === 'queue' ? 'review.queueEmpty' : 'review.empty')}
@@ -374,7 +371,7 @@ export function ReviewPage() {
                       <ConfidenceCard review={review.data} />
                       <StylePanel key={photoId} photoId={photoId} onCompare={setCompareParams} />
                       <GeometryPanel params={params} analysis={detail.data?.analysis ?? null} onChange={onChange}
-                        onAssociateLens={() => navigate(`/progetti/${id}/scene`)} disabled={inspecting} />
+                        onAssociateLens={() => navigate(`/progetti/${id}/scene`)} crop={inspecting ? undefined : crop} disabled={inspecting} />
                     </>
                   } />
               ) : (

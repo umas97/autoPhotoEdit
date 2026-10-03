@@ -36,6 +36,7 @@ import type { EditParams, Photo } from '../lib/types'
 import { t } from '../i18n/it'
 import { AppShell } from '../components/AppShell'
 import { GeometryPanel } from '../components/GeometryPanel'
+import { useCropEditor, useShownParams } from '../components/crop'
 import { EditSidebar } from '../components/masks/EditSidebar'
 import { handleMaskKey } from '../components/masks/shortcuts'
 import { useMaskEditor } from '../components/masks/useMaskEditor'
@@ -101,6 +102,7 @@ export function ViewerPage() {
     current?.id ?? null,
   )
   const editor = useMaskEditor(current?.id ?? null, params?.masks.length ?? 0)
+  const crop = useCropEditor(current, params, onChange)
   const [showBefore, setShowBefore] = useState(false)
   const [snapshotsOpen, setSnapshotsOpen] = useState(false)
   const imageRef = useRef<HTMLImageElement | null>(null)
@@ -109,7 +111,8 @@ export function ViewerPage() {
   const [compare, setCompare] = useState<EditParams | null>(null)
   useEffect(() => setCompare(null), [current?.id])
   const revision = useRetouchWatch(id, current?.id ?? null)
-  const preview = usePreview(current?.id ?? null, compare ?? params, dragging, {
+  const shown = useShownParams(compare ?? params, crop)
+  const preview = usePreview(current?.id ?? null, shown, dragging, {
     retouch: editor.showRemovals,
     revision,
   })
@@ -244,7 +247,7 @@ export function ViewerPage() {
         <ViewerStage projectId={id} current={current} detail={detail.data} params={params}
           onChange={onChange} preview={preview} comparing={compare !== null}
           showBefore={showBefore} dragging={dragging} flush={flush} editor={editor}
-          imageRef={imageRef} />
+          crop={crop} imageRef={imageRef} />
 
         <aside className="min-h-0 border-l border-ink-700">
           {params && current ? (
@@ -263,6 +266,7 @@ export function ViewerPage() {
                     analysis={detail.data?.analysis ?? null}
                     onChange={onChange}
                     onAssociateLens={() => navigate(`/progetti/${id}/scene`)}
+                    crop={crop}
                     disabled={current.missing}
                   />
                 </>

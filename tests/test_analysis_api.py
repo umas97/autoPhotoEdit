@@ -254,3 +254,45 @@ def test_a_catalogue_of_schema_2_is_migrated(xdg_home):
         session.add(Project(name="nuovo", source_dir="/x"))
         session.flush()
         assert session.query(Project).one().crop_proposals_paused is False
+
+
+def test_pending_proposals_in_another_ratio_are_withdrawn_and_proposed_again(catalog, project):
+    """Older builds proposed 4:5, 16:9 and 1:1; only the frame's own ratio is proposed now.
+
+    A pending one in another ratio goes, and the photo's crop alone is queued
+    again. A decided one is the user's and stays, and so does a panorama's
+    clean rectangle, whose ratio is the stitching's.
+    """
+    from sqlalchemy import select
+
+    from ape.analysis.service import retire_stale_proposals
+    from ape.db.models import CropDecision, CropProposal, Job, JobKind, Photo
+
+    project_id, _ = project
+    rect = {"x": 0.1, "y": 0.1, "width": 0.8, "height": 0.8}
+    with catalog() as session:
+        photos = session.scalars(
+            select(Photo).where(Photo.project_id == project_id).order_by(Photo.id)
+        ).all()
+        for photo in photos:
+            photo.proxy_path = f"/tmp/proxy-{photo.id}.jpg"
+        stale, decided, borders = photos[0], photos[1], photos[2]
+        session.add_all([
+            CropProposal(photo_id=stale.id, rect=rect, aspect="16:9",
+                         decision=CropDecision.PENDING),
+            CropProposal(photo_id=decided.id, rect=rect, aspect="4:5",
+                         decision=CropDecision.APPLIED),
+            CropProposal(photo_id=borders.id, rect=rect, aspect="borders",
+                         decision=CropDecision.PENDING),
+        ])
+        session.commit()
+
+        assert retire_stale_proposals(session) == 1
+        session.commit()
+        left = session.scalars(select(CropProposal).order_by(CropProposal.photo_id)).all()
+        assert [(p.photo_id, p.aspect) for p in left] == [(decided.id, "4:5"), (borders.id, "borders")]
+        jobs = session.scalars(select(Job).where(Job.kind == JobKind.ANALYZE)).all()
+        assert [job.payload for job in jobs] == [{"photo_id": stale.id, "only": "crop"}]
+
+        # Idempotent: the second start finds nothing.
+        assert retire_stale_proposals(session) == 0

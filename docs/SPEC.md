@@ -353,12 +353,17 @@ Ogni maschera è un elemento di `EditParams.masks[]`, con la propria sotto-lista
   segnalalo nella UI (l'utente può associare manualmente un profilo, scelta memorizzata per
   quell'obiettivo in tutti i progetti futuri).
 - **Crop compositivo (solo proposta):** calcola una mappa di salienza (`cv2.saliency` fine-grained
-  o un modello ONNX leggero), valuta un insieme di crop candidati per i rapporti configurati
-  (originale, 4:5, 16:9, 1:1) con un punteggio che combina: copertura della salienza, allineamento
+  o un modello ONNX leggero), valuta un insieme di crop candidati **solo nel rapporto originale
+  del fotogramma** (3:2 o 2:3 per uno scatto singolo; per un panorama il rapporto che risulta
+  dall'unione) con un punteggio che combina: copertura della salienza, allineamento
   dei picchi di salienza ai punti di forza (regola dei terzi), penalità per taglio di volti/soggetti,
   penalità per perdita di area. **Non applicare mai automaticamente.** Mostra il rettangolo
   proposto in overlay con un pulsante "Applica crop proposto". Se l'utente rifiuta due proposte
-  consecutive nello stesso progetto, smetti di proporre in quel progetto.
+  consecutive nello stesso progetto, smetti di proporre in quel progetto. Unica eccezione al
+  rapporto originale fra le proposte: il rettangolo senza bordi vuoti di un panorama (§25.5.5).
+- **Crop manuale:** "Ritaglia" nel pannello Geometria apre un riquadro da trascinare sulla foto,
+  bloccato sul rapporto originale. Altri rapporti (libero, 1:1, 4:5, 16:9, con l'orientamento
+  invertibile) sono una scelta esplicita dell'utente, mai un default.
 
 ---
 
